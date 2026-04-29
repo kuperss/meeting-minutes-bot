@@ -1,0 +1,13 @@
+# Linux/Docker 必須 LF 換行
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+*.py        text eol=lf
+*.toml      text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+
+# 二進位檔(雖然目前沒有)
+*.png       binary
+*.jpg       binary
+*.mp3       binary
+*.mp4       binary

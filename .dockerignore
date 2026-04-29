@@ -1,0 +1,34 @@
+# Secrets / 環境
+.env
+credentials/
+*.pem
+*.key
+
+# 本機產物
+uploads/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.python-version
+
+# Git / CI
+.git/
+.github/
+.gitignore
+
+# 文件/前端(前端去 GH Pages,但留著也無害;若要最小化 image 可取消註解)
+# frontend/
+*.md
+!README.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# 測試 / cache
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/

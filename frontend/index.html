@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>業務部會議紀錄</title>
+  <script src="./config.js"></script>
+  <style>
+    :root {
+      --primary: #2b7fcd;
+      --bg: #f5f7fa;
+      --card: #ffffff;
+      --border: #d4dde6;
+      --text: #1a2634;
+      --muted: #6b7a8a;
+      --success: #28a745;
+      --error: #dc3545;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC",
+        "Microsoft JhengHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    .container { max-width: 560px; margin: 0 auto; }
+    h1 { font-size: 1.4rem; margin: 0 0 1rem; }
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1.25rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      margin-bottom: 1rem;
+    }
+    label {
+      display: block;
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+    select, input[type="date"], input[type="password"], button {
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: white;
+      margin-bottom: 1rem;
+      font-family: inherit;
+    }
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 2rem 1rem;
+      text-align: center;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 1rem;
+    }
+    .drop-zone.dragover {
+      border-color: var(--primary);
+      background: #eef6fc;
+      color: var(--primary);
+    }
+    .drop-zone input { display: none; }
+    .drop-zone .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    .file-info {
+      background: #eef6fc;
+      padding: 0.75rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+    }
+
+    .progress-wrap { margin-bottom: 1rem; }
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e6edf4;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--primary);
+      transition: width 0.2s ease;
+    }
+    .progress-text {
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-align: right;
+      margin-top: 0.3rem;
+    }
+
+    .log {
+      background: #0f1720;
+      color: #cfd8e3;
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 0.8rem;
+      padding: 0.75rem;
+      border-radius: 8px;
+      max-height: 240px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    .log .ts { color: #7fb3e3; }
+
+    .status {
+      display: inline-block;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .status.pending, .status.running { background: #fff3cd; color: #856404; }
+    .status.done { background: #d4edda; color: #155724; }
+    .status.error { background: #f8d7da; color: #721c24; }
+
+    .result { margin-top: 1rem; }
+    .result .tab-name {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--primary);
+    }
+    .result .minutes-preview {
+      background: #f8f9fa;
+      padding: 0.75rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .result ul { margin: 0.25rem 0; padding-left: 1.2rem; }
+
+    .footer-meta {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 1rem;
+    }
+
+    /* Token modal */
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100;
+    }
+    .modal {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      max-width: 400px;
+      width: 90%;
+    }
+    .modal h2 { margin-top: 0; font-size: 1.1rem; }
+    .modal p { font-size: 0.85rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📝 業務部會議紀錄</h1>
+
+    <div class="card" id="formCard">
+      <label for="recorder">記錄人</label>
+      <select id="recorder" required></select>
+
+      <label for="meetingDate">會議日期</label>
+      <input type="date" id="meetingDate">
+
+      <label>會議錄音</label>
+      <div class="drop-zone" id="dropZone">
+        <div class="icon">🎙️</div>
+        <div id="dropText">點此選擇或拖拉音檔<br><small>手機可直接錄音上傳</small></div>
+        <input type="file" id="fileInput" accept="audio/*" capture="microphone">
+      </div>
+      <div class="file-info" id="fileInfo" style="display:none"></div>
+
+      <div class="progress-wrap" id="uploadProgressWrap" style="display:none">
+        <div class="progress-bar"><div class="progress-fill" id="uploadProgressBar"></div></div>
+        <div class="progress-text" id="uploadProgressText">0%</div>
+      </div>
+
+      <button id="uploadBtn" disabled>開始處理</button>
+    </div>
+
+    <div class="card" id="progressCard" style="display:none">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem">
+        <strong>處理進度</strong>
+        <span class="status" id="statusBadge">等待中</span>
+      </div>
+      <div class="log" id="logBox"></div>
+      <div class="result" id="resultBox"></div>
+    </div>
+
+    <div class="footer-meta">
+      後端 <span id="apiBaseDisplay"></span>
+      · <a href="#" id="resetTokenLink">重設 token</a>
+    </div>
+  </div>
+
+  <!-- Token 輸入 modal -->
+  <div class="modal-backdrop" id="tokenModal" style="display:none">
+    <div class="modal">
+      <h2>🔐 請輸入存取 token</h2>
+      <p>首次使用請向管理員索取存取 token(只需輸入一次,會記住在這個瀏覽器)。</p>
+      <input type="password" id="tokenInput" placeholder="貼上 token">
+      <button id="saveTokenBtn">儲存</button>
+    </div>
+  </div>
+
+  <script>
+    // ─── API_BASE 自動判斷 ───
+    // localhost 用相對路徑 (給本機 FastAPI 開發用)
+    // 其他 (GH Pages) 用 config.js 裡的 API_BASE
+    const isLocal = ["localhost", "127.0.0.1"].includes(location.hostname);
+    const API_BASE = isLocal ? "" : (window.APP_CONFIG?.API_BASE || "");
+
+    document.getElementById("apiBaseDisplay").textContent =
+      API_BASE || "(本機)";
+
+    // ─── Token 管理 ───
+    const TOKEN_KEY = "meeting_minutes_token";
+    function getToken() { return localStorage.getItem(TOKEN_KEY) || ""; }
+    function setToken(t) { localStorage.setItem(TOKEN_KEY, t); }
+    function clearToken() { localStorage.removeItem(TOKEN_KEY); }
+
+    function showTokenModal() {
+      document.getElementById("tokenInput").value = "";
+      document.getElementById("tokenModal").style.display = "flex";
+    }
+    function hideTokenModal() {
+      document.getElementById("tokenModal").style.display = "none";
+    }
+
+    document.getElementById("saveTokenBtn").addEventListener("click", () => {
+      const t = document.getElementById("tokenInput").value.trim();
+      if (!t) return;
+      setToken(t);
+      hideTokenModal();
+      initPage();
+    });
+    document.getElementById("tokenInput").addEventListener("keydown", e => {
+      if (e.key === "Enter") document.getElementById("saveTokenBtn").click();
+    });
+    document.getElementById("resetTokenLink").addEventListener("click", e => {
+      e.preventDefault();
+      clearToken();
+      showTokenModal();
+    });
+
+    // ─── 帶 token 的 fetch ───
+    async function authFetch(path, opts = {}) {
+      const headers = { ...(opts.headers || {}) };
+      const token = getToken();
+      if (token) headers["Authorization"] = "Bearer " + token;
+      const res = await fetch(API_BASE + path, { ...opts, headers });
+      if (res.status === 401) {
+        clearToken();
+        showTokenModal();
+        throw new Error("未授權,請重新輸入 token");
+      }
+      return res;
+    }
+
+    // ─── 初始化 ───
+    const el = id => document.getElementById(id);
+    const recorderEl = el("recorder");
+    const dateEl = el("meetingDate");
+    const dropZone = el("dropZone");
+    const fileInput = el("fileInput");
+    const fileInfo = el("fileInfo");
+    const uploadBtn = el("uploadBtn");
+    const progressCard = el("progressCard");
+    const logBox = el("logBox");
+    const statusBadge = el("statusBadge");
+    const resultBox = el("resultBox");
+
+    let selectedFile = null;
+    let pollTimer = null;
+
+    dateEl.value = new Date().toISOString().slice(0, 10);
+
+    async function initPage() {
+      if (!getToken() && !isLocal) {
+        showTokenModal();
+        return;
+      }
+      try {
+        const res = await authFetch("/api/recorders");
+        if (!res.ok) throw new Error("recorder fetch failed");
+        const d = await res.json();
+        if (!d.recorders.length) {
+          recorderEl.innerHTML = '<option value="">(請設定 RECORDERS)</option>';
+          return;
+        }
+        recorderEl.innerHTML = d.recorders
+          .map(r => `<option value="${r}">${r}</option>`)
+          .join("");
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // ─── 拖拉區 ───
+    dropZone.addEventListener("click", () => fileInput.click());
+    dropZone.addEventListener("dragover", e => {
+      e.preventDefault(); dropZone.classList.add("dragover");
+    });
+    dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+    dropZone.addEventListener("drop", e => {
+      e.preventDefault(); dropZone.classList.remove("dragover");
+      if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener("change", e => {
+      if (e.target.files.length) handleFile(e.target.files[0]);
+    });
+
+    function handleFile(f) {
+      selectedFile = f;
+      fileInfo.style.display = "block";
+      fileInfo.textContent = `已選:${f.name}(${(f.size / 1024 / 1024).toFixed(2)} MB)`;
+      uploadBtn.disabled = false;
+    }
+
+    uploadBtn.addEventListener("click", () => {
+      if (!selectedFile) return;
+      uploadBtn.disabled = true;
+      uploadBtn.textContent = "上傳中…";
+
+      const progressWrap = el("uploadProgressWrap");
+      const progressBar = el("uploadProgressBar");
+      const progressText = el("uploadProgressText");
+      progressWrap.style.display = "block";
+      progressBar.style.width = "0%";
+      progressText.textContent = "0%";
+
+      const fd = new FormData();
+      fd.append("file", selectedFile);
+      fd.append("recorder", recorderEl.value);
+      fd.append("meeting_date", dateEl.value);
+
+      // XHR (fetch 無法取得上傳進度)
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", API_BASE + "/api/upload");
+      const token = getToken();
+      if (token) xhr.setRequestHeader("Authorization", "Bearer " + token);
+
+      xhr.upload.onprogress = (e) => {
+        if (!e.lengthComputable) return;
+        const pct = Math.round((e.loaded / e.total) * 100);
+        progressBar.style.width = pct + "%";
+        progressText.textContent =
+          `${pct}% (${(e.loaded / 1024 / 1024).toFixed(1)}/${(e.total / 1024 / 1024).toFixed(1)} MB)`;
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 401) {
+          clearToken(); showTokenModal();
+          resetUploadUI(); return;
+        }
+        if (xhr.status < 200 || xhr.status >= 300) {
+          alert("上傳失敗: " + xhr.responseText);
+          resetUploadUI(); return;
+        }
+        try {
+          const { job_id } = JSON.parse(xhr.responseText);
+          progressText.textContent = "✓ 上傳完成,後端處理中…";
+          progressCard.style.display = "block";
+          uploadBtn.textContent = "處理中…";
+          pollJob(job_id);
+        } catch (e) {
+          alert("伺服器回覆格式錯誤"); resetUploadUI();
+        }
+      };
+
+      xhr.onerror = () => {
+        alert("網路錯誤,請檢查連線");
+        resetUploadUI();
+      };
+
+      xhr.send(fd);
+    });
+
+    function resetUploadUI() {
+      uploadBtn.disabled = false;
+      uploadBtn.textContent = "開始處理";
+      el("uploadProgressWrap").style.display = "none";
+    }
+
+    async function pollJob(jid) {
+      if (pollTimer) clearInterval(pollTimer);
+      const tick = async () => {
+        try {
+          const res = await authFetch(`/api/jobs/${jid}`);
+          if (!res.ok) return;
+          const job = await res.json();
+          renderJob(job);
+          if (job.status === "done" || job.status === "error") {
+            clearInterval(pollTimer);
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = "再處理一個";
+          }
+        } catch (e) { /* silent */ }
+      };
+      tick();
+      pollTimer = setInterval(tick, 3000);
+    }
+
+    function renderJob(job) {
+      statusBadge.className = "status " + job.status;
+      statusBadge.textContent = {
+        pending: "等待中", running: "處理中",
+        done: "完成 ✓", error: "失敗 ✗",
+      }[job.status] || job.status;
+
+      logBox.innerHTML = job.messages
+        .map(m => `<span class="ts">[${m.ts}]</span> ${escapeHtml(m.msg)}`)
+        .join("\n");
+      logBox.scrollTop = logBox.scrollHeight;
+
+      if (job.status === "done" && job.result) {
+        const r = job.result;
+        resultBox.innerHTML = `
+          <div class="tab-name">✅ ${escapeHtml(r.tab_name)}</div>
+          <div class="minutes-preview">
+            <strong>主要內容</strong>
+            <ul>${(r.minutes.main_content || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
+            <strong>追蹤事項</strong>
+            <ul>${(r.minutes.followup_items || []).map(x => `<li>${escapeHtml(x)}</li>`).join("") || "<li>無</li>"}</ul>
+          </div>`;
+      } else if (job.status === "error") {
+        resultBox.innerHTML = `<div style="color:var(--error)">錯誤: ${escapeHtml(job.error || "")}</div>`;
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+      );
+    }
+
+    initPage();
+  </script>
+</body>
+</html>

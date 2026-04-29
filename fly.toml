@@ -1,0 +1,43 @@
+# Fly.io 設定 — 部署前請改 `app` 為你唯一的名字
+# 用法: fly launch --no-deploy  (會幫你產一個)  或  fly deploy
+
+app = "meeting-minutes"          # ⚠️ 改成你自己的唯一名稱
+primary_region = "nrt"           # 東京 (離台灣最近)
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8000"
+  HOST = "0.0.0.0"
+  # ⚠️ 非敏感設定放這裡就好
+  TEMPLATE_SHEET_NAME = "範本"
+  NOTEBOOK_RETENTION_DAYS = "14"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"    # 閒置自動停 (省錢)
+  auto_start_machines = true     # 有 request 自動醒
+  min_machines_running = 0
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 20
+    soft_limit = 10
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/api/health"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "512mb"              # 足夠跑 FastAPI + notebooklm API 呼叫
+
+[deploy]
+  strategy = "immediate"

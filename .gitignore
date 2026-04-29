@@ -1,0 +1,42 @@
+# 敏感資料 (絕對不能進 git)
+.env
+.env.local
+credentials/
+*.pem
+*.key
+
+# 測試音檔(可能含真實會議內容)
+test.m4a
+test.mp3
+test.wav
+test*.m4a
+test*.mp3
+*.m4a
+*.mp3
+*.wav
+*.mp4
+*.aac
+*.ogg
+*.flac
+*.opus
+*.webm
+
+# 本機產物
+uploads/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.python-version
+
+# IDE
+.vscode/
+.idea/
+.claude/
+*.swp
+.DS_Store
+
+# 測試
+.pytest_cache/
+.mypy_cache/
+.coverage
