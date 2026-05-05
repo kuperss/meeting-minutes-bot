@@ -18,21 +18,37 @@ NotebookLM **沒有官方 API**。`notebooklm-py` 是社群非官方 wrapper,做
 - 不適合面對外部使用者(只該給內部小團隊用)
 
 repo: <https://github.com/teng-lin/notebooklm-py>
+PyPI: <https://pypi.org/project/notebooklm-py/>
+
+> ⚠️ **不需要 git clone 這個 repo**。它是 PyPI 套件,直接 `pip install notebooklm-py` 就好。
+> 以下提到 source code(例如 `notebooklm/cli/session.py`)是指 pip 裝完後在 `.venv/Lib/site-packages/notebooklm/` 內的檔案,可以打開來看。
 
 ---
 
 ## 2. 環境準備
 
-### 2-1. 套件分兩組
+### 2-1. 套件分兩組,直接 pip install
 
-```python
-# requirements.txt (production / 部署到 server 用)
-notebooklm-py>=0.1.0
+```bash
+# A. Production / Server 部署 (放 requirements.txt)
+pip install notebooklm-py>=0.1.0
 # ⚠️ 不裝 [browser] extra — server 不需要 playwright
 
-# 本機**初次取 cookie** 才需要這兩個 (一次性):
-# pip install "notebooklm-py[browser]"
-# playwright install chromium
+# B. 本機初次取 cookie (一次性,只需在你的開發機跑)
+pip install "notebooklm-py[browser]"
+playwright install chromium
+```
+
+`requirements.txt` 範例(本專案的內容):
+```
+notebooklm-py>=0.1.0       # 純 API 呼叫,不含 playwright
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+gspread>=6.0.0
+google-auth>=2.28.0
+tenacity>=8.2.0
+slowapi>=0.1.9
+# ... 詳見專案 requirements.txt
 ```
 
 ### 2-2. 預設檔案位置
