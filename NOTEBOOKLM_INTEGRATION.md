@@ -135,36 +135,106 @@ page.goto(GOOGLE_ACCOUNTS_URL, wait_until="load")  # ← 會炸
 > - 產出的 `storage_state.json` 跟 `notebooklm login` 應該產的是**同一個格式**,所以後面所有 `notebooklm-py` API / CLI 都讀得到、能正常運作
 > - 等套件未來修好那個 bug,可以直接改回用 `notebooklm login`,本專案其他 code 都不用動
 
-完整腳本(這支已經在本專案 repo 裡):
+**完整 `manual_login.py`**(直接複製整支貼到專案根目錄即可,沒有外部相依除了 playwright):
 
 ```python
-# manual_login.py 的核心邏輯
-from playwright.sync_api import sync_playwright
+"""繞過 notebooklm-py CLI login 的 bug,手動產生 storage_state.json。
+
+問題:notebooklm CLI 在按 Enter 後會 force navigate 到 accounts.google.com,
+但 Google 看到已登入的 session 會重導回 notebooklm.google.com,
+playwright 的 goto 因此中斷,login 失敗。
+
+這腳本跳過那個強制跳轉,直接把 cookies 存出來。
+
+用法:
+  python manual_login.py
+"""
+from __future__ import annotations
+
+import sys
 from pathlib import Path
 
+from playwright.sync_api import sync_playwright
+
+NOTEBOOKLM_URL = "https://notebooklm.google.com/"
+
+# 使用 notebooklm-py 預設路徑,讓 auth check 找得到
 HOME = Path.home() / ".notebooklm"
 BROWSER_PROFILE = HOME / "browser_profile"
 STORAGE_PATH = HOME / "storage_state.json"
 
-with sync_playwright() as p:
-    context = p.chromium.launch_persistent_context(
-        user_data_dir=str(BROWSER_PROFILE),
-        headless=False,
-        args=[
-            "--disable-blink-features=AutomationControlled",
-            "--password-store=basic",
-        ],
-        ignore_default_args=["--enable-automation"],
-    )
-    page = context.pages[0] if context.pages else context.new_page()
-    page.goto("https://notebooklm.google.com/")
+# 額外複製到專案 credentials/(讓 .env 指過去)
+PROJECT_CREDS = Path(__file__).resolve().parent / "credentials" / "notebooklm_storage.json"
 
-    input("[等使用者完成登入後按 ENTER] ")
 
-    # 直接存,不做 force-redirect
-    context.storage_state(path=str(STORAGE_PATH))
-    context.close()
+def main() -> int:
+    HOME.mkdir(parents=True, exist_ok=True, mode=0o700)
+    BROWSER_PROFILE.mkdir(parents=True, exist_ok=True, mode=0o700)
+    PROJECT_CREDS.parent.mkdir(parents=True, exist_ok=True)
+
+    print(f"瀏覽器 profile: {BROWSER_PROFILE}")
+    print(f"輸出 storage : {STORAGE_PATH}")
+    print(f"複製到專案   : {PROJECT_CREDS}")
+    print()
+
+    with sync_playwright() as p:
+        context = p.chromium.launch_persistent_context(
+            user_data_dir=str(BROWSER_PROFILE),
+            headless=False,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--password-store=basic",
+            ],
+            ignore_default_args=["--enable-automation"],
+        )
+
+        page = context.pages[0] if context.pages else context.new_page()
+        page.goto(NOTEBOOKLM_URL)
+
+        print("=" * 50)
+        print("步驟:")
+        print("  1. 在跳出的瀏覽器完成 Google 登入")
+        print("  2. 等到看見 NotebookLM 首頁(左側可看到 Notebook 列表)")
+        print("  3. 回到這個視窗按 ENTER")
+        print("=" * 50)
+
+        try:
+            input("\n[完成後按 ENTER] ")
+        except (EOFError, KeyboardInterrupt):
+            print("\n取消")
+            context.close()
+            return 1
+
+        # 確認真的在 NotebookLM 上
+        current_url = page.url
+        if "notebooklm.google.com" not in current_url:
+            print(f"\n警告:目前不在 NotebookLM (現在在 {current_url})")
+            ans = input("還是要存嗎?[y/N] ").strip().lower()
+            if ans != "y":
+                context.close()
+                return 1
+
+        # 直接存,不做那個會壞的 force-redirect
+        context.storage_state(path=str(STORAGE_PATH))
+
+        # 同時複製到專案
+        import shutil
+        shutil.copy2(STORAGE_PATH, PROJECT_CREDS)
+
+        context.close()
+
+    print(f"\n[OK] storage 已存到:{STORAGE_PATH}")
+    print(f"[OK] 已複製到專案 :{PROJECT_CREDS}")
+    print("\n下一步:跑這個驗證")
+    print("  notebooklm auth check --test")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
 ```
+
+> 💡 **新環境/新 agent**:如果這支不在工作目錄,複製上面整段存成 `manual_login.py`,然後 `pip install playwright` + `playwright install chromium` + `python manual_login.py` 即可。**沒有任何專案相依,可獨立使用。**
 
 ### 3-3. 操作步驟(整理成一行行可貼)
 
